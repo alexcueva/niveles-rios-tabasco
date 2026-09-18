@@ -403,7 +403,7 @@
         <summary class="seriesmenu-btn" id="seriesMenuBtnQ">Series <span class="car">▾</span></summary>
         <div class="seriesmenu-panel" id="seriesMenuPanelQ">
           <label><input type="checkbox" data-series="Mediana histórica (P50)" checked><span class="swatch dash" style="background:var(--cv-muted)"></span>Mediana histórica (P50)</label>
-          <label><input type="checkbox" data-series="Q medido (oficial)" checked><span class="swatch" style="background:var(--cv-series-1)"></span>Q medido (oficial)</label>
+          <label><input type="checkbox" data-series="Gasto histórico oficial (CONAGUA)" checked><span class="swatch" style="background:var(--cv-series-1)"></span>Gasto histórico oficial (CONAGUA)</label>
           <label><input type="checkbox" data-series="Random Forest" checked><span class="swatch" style="background:var(--cv-rf)"></span>Random Forest</label>
           <label><input type="checkbox" data-series="ANFIS"><span class="swatch" style="background:var(--cv-anfis)"></span>ANFIS</label>
           <label><input type="checkbox" data-series="Curva Gasto-Elevación (Conagua)"><span class="swatch" style="background:var(--cv-rc)"></span>Curva Gasto-Elevación (Conagua)</label>
@@ -1010,7 +1010,7 @@
   const denseCacheQ = {};
   const seriesVisibilityQ = {
     'Mediana histórica (P50)': true,
-    'Q medido (oficial)': true,
+    'Gasto histórico oficial (CONAGUA)': true,
     'Random Forest': true,
     'ANFIS': false,
     'Curva Gasto-Elevación (Conagua)': false,
@@ -1100,7 +1100,7 @@
           { label: 'P25 (base banda)', data: p25, borderWidth: 0, pointRadius: 0, fill: false, order: 6, spanGaps: false },
           { label: 'Rango normal (P25–P75)', data: p75, borderWidth: 0, pointRadius: 0, fill: '-1', backgroundColor: tok('--cv-band-inner'), order: 5, spanGaps: false },
           { label: 'Mediana histórica (P50)', data: p50, borderColor: tok('--cv-muted'), borderWidth: 1.5, borderDash: [4, 3], pointRadius: 0, fill: false, order: 4, spanGaps: false, hidden: !seriesVisibilityQ['Mediana histórica (P50)'] },
-          { label: 'Q medido (oficial)', data: real, borderColor: tok('--cv-series-1'), backgroundColor: tok('--cv-series-1'), borderWidth: 2, pointRadius: selectedRangeQ === '7d' ? 3 : 0, pointHoverRadius: 5, fill: false, order: 0, spanGaps: false, hidden: !seriesVisibilityQ['Q medido (oficial)'] },
+          { label: 'Gasto histórico oficial (CONAGUA)', data: real, borderColor: tok('--cv-series-1'), backgroundColor: tok('--cv-series-1'), borderWidth: 2, pointRadius: selectedRangeQ === '7d' ? 3 : 0, pointHoverRadius: 5, fill: false, order: 0, spanGaps: false, hidden: !seriesVisibilityQ['Gasto histórico oficial (CONAGUA)'] },
           { label: 'Random Forest', data: rf, borderColor: tok('--cv-rf'), backgroundColor: tok('--cv-rf'), borderWidth: 1.6, pointRadius: 0, pointHoverRadius: 4, fill: false, order: 1, spanGaps: false, hidden: !seriesVisibilityQ['Random Forest'] },
           { label: 'ANFIS', data: anfis, borderColor: tok('--cv-anfis'), backgroundColor: tok('--cv-anfis'), borderWidth: 1.6, pointRadius: 0, pointHoverRadius: 4, fill: false, order: 2, spanGaps: false, hidden: !seriesVisibilityQ['ANFIS'] },
           { label: 'Curva Gasto-Elevación (Conagua)', data: rc, borderColor: tok('--cv-rc'), backgroundColor: tok('--cv-rc'), borderWidth: 1.6, pointRadius: 0, pointHoverRadius: 4, fill: false, order: 3, spanGaps: false, hidden: !seriesVisibilityQ['Curva Gasto-Elevación (Conagua)'] },
@@ -1122,7 +1122,7 @@
           tooltip: {
             backgroundColor: tok('--cv-surface'), titleColor: tok('--cv-ink'), bodyColor: tok('--cv-ink-2'),
             borderColor: tok('--cv-grid'), borderWidth: 1, padding: 10,
-            filter: (item) => ['Q medido (oficial)', 'Random Forest', 'ANFIS', 'Curva Gasto-Elevación (Conagua)', 'Mediana histórica (P50)', 'Rango extremo (P10–P90)'].includes(item.dataset.label),
+            filter: (item) => ['Gasto histórico oficial (CONAGUA)', 'Random Forest', 'ANFIS', 'Curva Gasto-Elevación (Conagua)', 'Mediana histórica (P50)', 'Rango extremo (P10–P90)'].includes(item.dataset.label),
             callbacks: {
               title: (items) => items.length ? new Date(items[0].parsed.x).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) : '',
               label: (item) => {
