@@ -279,6 +279,11 @@
     font-family:"Inter",sans-serif; font-size:13px; color: var(--text-strong);
     background: var(--panel-bg-2); border:1px solid var(--panel-border); border-radius:8px; padding:7px 11px; min-width:200px;
   }
+  .gastoModelLabel{ font-family:"Inter",sans-serif; font-size:12.5px; color: var(--text-faint); margin-left:6px; }
+  select#gastoModelSelect{
+    font-family:"Inter",sans-serif; font-size:13px; color: var(--text-strong);
+    background: var(--panel-bg-2); border:1px solid var(--panel-border); border-radius:8px; padding:7px 11px;
+  }
   .tablescroll{ overflow-x:auto; }
   table.data{ width:100%; border-collapse:collapse; font-size:13px; min-width:760px; }
   table.data th, table.data td{ text-align:left; padding:9px 10px; border-bottom:1px solid var(--panel-border); white-space:nowrap; }
@@ -415,9 +420,15 @@
 
   <section class="panel">
     <div class="ph"><h2>Tabla de datos</h2><span class="hint" id="tableDateHint">valor más reciente de cada estación</span></div>
-    <div class="panel-note">"Nivel (msnm)" = elevación de la superficie del agua en metros sobre el nivel del mar. "% vs mediana" compara ese nivel contra la mediana histórica (P50) de ese mismo día del año. Las columnas de "Gasto" son una estimación (m³/s) a partir del nivel, con modelos calibrados contra datos oficiales — solo disponibles por ahora para González y Pueblo Nuevo.</div>
+    <div class="panel-note">"Nivel (msnm)" = elevación de la superficie del agua en metros sobre el nivel del mar. "% vs mediana" compara ese nivel contra la mediana histórica (P50) de ese mismo día del año. Las columnas de "Gasto" son una estimación (m³/s) a partir del nivel, con modelos calibrados contra datos oficiales — solo disponibles por ahora para González y Pueblo Nuevo. "Caudal ecológico de referencia³" es el régimen mensual calculado con el método del Apéndice C de la norma NMX-AA-159-SCFI-2012 (objetivo ambiental A, el más protector, según la Tabla A.1 de la norma para estos ríos); "Cumplimiento CE" compara el gasto del modelo elegido abajo contra ese valor del mes en curso.</div>
     <div class="tablecontrols">
       <input type="search" id="tableSearch" placeholder="Buscar río o estación…">
+      <label for="gastoModelSelect" class="gastoModelLabel">Comparar Cumplimiento CE con:</label>
+      <select id="gastoModelSelect">
+        <option value="rf" selected>Gasto RF</option>
+        <option value="anfis">Gasto ANFIS</option>
+        <option value="rc">Gasto Conagua</option>
+      </select>
     </div>
     <div class="tablescroll">
       <table class="data" id="dataTable">
@@ -430,7 +441,8 @@
           <th data-k="gasto_rf">Gasto RF (m³/s)</th>
           <th data-k="gasto_anfis">Gasto ANFIS (m³/s)</th>
           <th data-k="gasto_rc">Gasto Conagua (m³/s)</th>
-          <th data-k="categoria">Categoría</th>
+          <th data-k="ce_ref">Caudal ecológico de referencia³ (m³/s)</th>
+          <th data-k="cumplimiento_ce">Cumplimiento CE</th>
         </tr></thead>
         <tbody id="dataTableBody"></tbody>
       </table>
@@ -532,6 +544,11 @@
     const arrow = pct > 0 ? '▲' : '▼';
     const color = pct > 0 ? 'var(--st-good)' : 'var(--st-critical)';
     return `<span style="color:${color}">${arrow} ${sign}${pct.toFixed(1)}%</span>`;
+  }
+  function cumplimientoCell(estado){
+    if (estado == null) return `<span style="color:var(--text-faint)">—</span>`;
+    const color = estado === 'Cumple' ? 'var(--st-good)' : 'var(--st-critical)';
+    return `<span style="color:${color}">${escapeHtml(estado)}</span>`;
   }
 
   let selectedId = (byId["Carrizal_Gonzalez"] ? "Carrizal_Gonzalez" : stations[0].id);
@@ -949,17 +966,39 @@
   // Estaciones con modelo H->Q entrenado (id del dashboard -> clave en MODELOS)
   const ESTACION_MODELO_KEY = { Carrizal_Gonzalez: 'Gonzalez', De_la_Sierra_Pueblo_Nuevo: 'Pueblo Nuevo' };
 
+  // Regimen mensual de caudal ecologico de referencia (m3/s), objetivo ambiental A
+  // (el mas protector -- Tabla A.1 de la NMX-AA-159-SCFI-2012 clasifica a "El Carrizal"
+  // y "De la Sierra" con importancia ecologica Muy alta/Alta y presion de uso Baja).
+  // Calculado con el metodo del Apendice C (Garcia et al. 1999), usando la funcion
+  // metodologia_apendice_c() del script de Alex: Gonzalez tomado de su libro de calculo
+  // validado (serie 1957-2014); Pueblo Nuevo calculado con la misma funcion sobre la
+  // serie oficial CONAGUA 1995-2026 ya usada en el hidrograma de este dashboard.
+  const REGIMEN_CE_A = {
+    Gonzalez: {1:65.805,2:65.805,3:65.805,4:65.805,5:65.805,6:65.805,7:131.610,8:131.610,9:147.725,10:160.715,11:131.610,12:65.805},
+    'Pueblo Nuevo': {1:192.131,2:157.105,3:97.380,4:81.616,5:82.730,6:182.539,7:183.549,8:197.451,9:177.389,10:213.257,11:158.274,12:124.629},
+  };
+  let gastoModelSel = 'rf';
+
   function tableRows(){
     let rows = stations.map(s=>{
       const modeloKey = ESTACION_MODELO_KEY[s.id];
       const H = s.actual.valor;
+      const gasto_rf = modeloKey ? estimarQ(modeloKey, 'RF', H) : null;
+      const gasto_anfis = modeloKey ? estimarQ(modeloKey, 'ANFIS', H) : null;
+      const gasto_rc = modeloKey ? estimarQ(modeloKey, 'RC', H) : null;
+      const gastoElegido = { rf: gasto_rf, anfis: gasto_anfis, rc: gasto_rc }[gastoModelSel];
+      const mesActual = new Date(s.actual.fecha + 'T00:00:00').getMonth() + 1;
+      const ce_ref = modeloKey ? (REGIMEN_CE_A[modeloKey] || {})[mesActual] : undefined;
+      const cumplimiento_ce = (modeloKey && ce_ref != null && gastoElegido != null)
+        ? (gastoElegido >= ce_ref ? 'Cumple' : 'No cumple')
+        : null;
       return {
         id:s.id, semaforo:s.actual.categoria, rio:s.rio, estacion:s.estacion, fecha:s.actual.fecha,
         valor:H, pctmed: s.actual.p50 ? ((H-s.actual.p50)/s.actual.p50*100) : 0,
         categoria:s.actual.categoria,
-        gasto_rf: modeloKey ? estimarQ(modeloKey, 'RF', H) : null,
-        gasto_anfis: modeloKey ? estimarQ(modeloKey, 'ANFIS', H) : null,
-        gasto_rc: modeloKey ? estimarQ(modeloKey, 'RC', H) : null,
+        gasto_rf, gasto_anfis, gasto_rc,
+        ce_ref: ce_ref != null ? ce_ref : null,
+        cumplimiento_ce,
       };
     });
     if(filterText){
@@ -988,12 +1027,14 @@
         <td class="num">${r.gasto_rf!=null ? r.gasto_rf.toFixed(1) : '—'}</td>
         <td class="num">${r.gasto_anfis!=null ? r.gasto_anfis.toFixed(1) : '—'}</td>
         <td class="num">${r.gasto_rc!=null ? r.gasto_rc.toFixed(1) : '—'}</td>
-        <td>${escapeHtml(r.categoria)}</td>`;
+        <td class="num">${r.ce_ref!=null ? r.ce_ref.toFixed(1) : '—'}</td>
+        <td>${cumplimientoCell(r.cumplimiento_ce)}</td>`;
       tr.addEventListener('click', ()=> selectStation(r.id));
       tbody.appendChild(tr);
     });
   }
   document.getElementById('tableSearch').addEventListener('input', (e)=>{ filterText = e.target.value; renderTable(); });
+  document.getElementById('gastoModelSelect').addEventListener('change', (e)=>{ gastoModelSel = e.target.value; renderTable(); });
   document.querySelectorAll('#dataTable th').forEach(th=>{
     th.addEventListener('click', ()=>{
       const k = th.dataset.k;
